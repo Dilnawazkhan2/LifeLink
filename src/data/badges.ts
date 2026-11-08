@@ -1,0 +1,58 @@
+import type { Badge } from '@/types';
+
+export const badges: Badge[] = [
+  {
+    id: 'b-regular',
+    title: 'Regular Donor',
+    description: '5+ donations',
+    requirement: 'Complete 5 blood donations',
+    icon: 'shield',
+    tone: 'blue',
+    earnedAt: '2023-11-01',
+  },
+  {
+    id: 'b-community',
+    title: 'Community Hero',
+    description: 'Responded to 3 urgent requests',
+    requirement: 'Respond to 3 urgent requests',
+    icon: 'help',
+    tone: 'green',
+    earnedAt: '2024-02-15',
+  },
+  {
+    id: 'b-hero',
+    title: 'Hero Donor',
+    description: '10 donations',
+    requirement: 'Complete 10 blood donations',
+    icon: 'award',
+    tone: 'red',
+    progress: 0.7,
+  },
+  {
+    id: 'b-lifesaver',
+    title: 'Life Saver',
+    description: 'Saved 25 lives',
+    requirement: 'Help save 25 lives through donations',
+    icon: 'heart',
+    tone: 'purple',
+    progress: 0.76,
+  },
+  {
+    id: 'b-rapid',
+    title: 'Rapid Responder',
+    description: 'Responded within 15 min',
+    requirement: 'Respond to a critical request within 15 minutes',
+    icon: 'zap',
+    tone: 'amber',
+    progress: 0.4,
+  },
+  {
+    id: 'b-legend',
+    title: 'LifeLink Legend',
+    description: '25 donations',
+    requirement: 'Complete 25 blood donations',
+    icon: 'trophy',
+    tone: 'amber',
+    progress: 0.28,
+  },
+];
