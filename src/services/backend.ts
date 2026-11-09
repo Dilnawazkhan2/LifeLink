@@ -30,7 +30,8 @@ function devHost(): string {
 
 function resolve(): { url: string; key: string } | null {
   if (!RAW_URL || RAW_URL === 'demo') return null;
-  if (RAW_URL === 'local') return { url: `http://${devHost()}:54321`, key: RAW_KEY || LOCAL_DEV_KEY };
+  // Always the dev server's own key: .env may hold the cloud key, which the local server rejects.
+  if (RAW_URL === 'local') return { url: `http://${devHost()}:54321`, key: LOCAL_DEV_KEY };
   if (!RAW_KEY) {
     console.warn('[LifeLink] EXPO_PUBLIC_SUPABASE_URL is set but EXPO_PUBLIC_SUPABASE_ANON_KEY is missing — running in demo mode.');
     return null;

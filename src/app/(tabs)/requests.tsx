@@ -19,7 +19,7 @@ type StatusFilter = 'all' | 'urgent' | 'active' | 'fulfilled';
 const urgencyRank = { critical: 0, urgent: 1, normal: 2 } as const;
 
 export default function Requests() {
-  const { state } = useApp();
+  const { state, actions } = useApp();
   const { urgent } = useStats();
   const { contactRequester, hasResponded } = useRequestActions();
   const [status, setStatus] = useState<StatusFilter>('all');
@@ -43,7 +43,8 @@ export default function Requests() {
     });
 
   return (
-    <Screen withTabBar contentStyle={{ gap: 14 }}>
+    // Pull-to-refresh (live mode), same as the Donors tab: a fallback if a realtime event is missed.
+    <Screen withTabBar contentStyle={{ gap: 14 }} refreshing={state.syncing} onRefresh={state.mode === 'live' ? actions.refresh : undefined}>
       <View style={{ marginHorizontal: -20 }}>
         <PageHeader
           title={mineOnly ? 'My Requests' : 'Blood Requests'}

@@ -131,7 +131,7 @@ export default function Profile() {
             </Text>
             <View style={styles.groupPill}>
               <BloodDropIcon size={14} color={Colors.primary} accent={Colors.white} />
-              <Text style={[styles.groupPillText, { color: BloodGroupTones[user.bloodGroup].text }]}>{user.bloodGroup}</Text>
+              <Text style={[styles.groupPillText, { color: BloodGroupTones[user.bloodGroup].text }]}>{user.bloodGroupMissing ? '—' : user.bloodGroup}</Text>
             </View>
             <View style={styles.rolePill}>
               <Text style={styles.roleText}>{roleLabel(user.role)}</Text>
@@ -239,7 +239,7 @@ export default function Profile() {
         </Pressable>
         <InfoRow icon={Mail} iconColor={Colors.info} iconBg={Colors.infoSoft} label="Email Address" value={user.email} />
         <InfoRow icon={Phone} iconColor={Colors.success} iconBg={Colors.successSoft} label="Phone Number" value={user.phone} />
-        <InfoRow icon={BloodIconAdapter} iconColor={Colors.primary} iconBg={Colors.primarySoft} label="Blood Group" value={user.bloodGroup} />
+        <InfoRow icon={BloodIconAdapter} iconColor={Colors.primary} iconBg={Colors.primarySoft} label="Blood Group" value={user.bloodGroupMissing ? 'Not set' : user.bloodGroup} />
         <InfoRow icon={MapPin} iconColor={Colors.warning} iconBg={Colors.warningSoft} label="City & Area" value={place(user.area, user.city)} />
         <InfoRow icon={User} iconColor={Colors.purple} iconBg={Colors.purpleSoft} label="Account Role" value={roleLabel(user.role)} />
         <InfoRow

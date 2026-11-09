@@ -358,7 +358,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           type: 'HYDRATE',
           payload: signedIn ? { ...(snapshot ?? {}), isAuthenticated: true, hasOnboarded: true } : { hasOnboarded: snapshot?.hasOnboarded ?? false },
         });
-        if (signedIn) sync.all(true, true);
+        // Not silent: a failed first load must show an error, not look like "no donors / no requests".
+        if (signedIn) sync.all(false, true);
       } else {
         dispatch({ type: 'HYDRATE', payload: snapshot });
       }

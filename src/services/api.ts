@@ -91,6 +91,8 @@ export function mapProfile(p: Row, summary?: Row | null): UserProfile {
     email: p.email ?? '',
     phone: p.phone ?? '',
     bloodGroup: asGroup(p.blood_group),
+    // asGroup falls back to 'O+' for the type; this flag stops that placeholder being shown or saved as real data.
+    bloodGroupMissing: !(BLOOD_GROUPS as readonly string[]).includes(String(p.blood_group)),
     city: p.city ?? '',
     area: p.area ?? p.donor?.area ?? '',
     role: (p.account_type ?? 'both') as AccountRole,

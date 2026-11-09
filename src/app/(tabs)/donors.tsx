@@ -81,12 +81,17 @@ export default function Donors() {
       </ChipRow>
 
       {results.length === 0 ? (
-        <EmptyState
-          icon={SearchX}
-          title="No donors found"
-          message="Try adjusting your filters or increasing the search radius."
-          action={<Button label="Clear filters" variant="soft" fullWidth={false} onPress={resetFilters} style={{ marginTop: 8 }} />}
-        />
+        state.donors.length === 0 ? (
+          // Nothing to filter: the server returned no eligible donors at all.
+          <EmptyState icon={SearchX} title="No donors yet" message="No donors are registered yet. Approved donors will appear here." />
+        ) : (
+          <EmptyState
+            icon={SearchX}
+            title="No donors found"
+            message="Try adjusting your filters or increasing the search radius."
+            action={<Button label="Clear filters" variant="soft" fullWidth={false} onPress={resetFilters} style={{ marginTop: 8 }} />}
+          />
+        )
       ) : (
         results.map((d) => <DonorCard key={d.id} donor={d} onPress={() => router.push(`/donors/${d.id}`)} />)
       )}

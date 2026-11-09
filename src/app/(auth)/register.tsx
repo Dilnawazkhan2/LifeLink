@@ -25,7 +25,7 @@ const ROLES: { key: AccountRole; label: string }[] = [
 
 type Field = 'name' | 'email' | 'phone' | 'password' | 'confirm' | 'bloodGroup' | 'area';
 
-/** Create a LifeLink account (shared with the LifeDrop website). */
+/** Create a LifeLink account (shared with the LifeLink website). */
 export default function Register() {
   const insets = useSafeAreaInsets();
   const { actions } = useApp();

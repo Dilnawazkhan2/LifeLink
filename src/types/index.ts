@@ -14,6 +14,8 @@ export interface UserProfile {
   email: string;
   phone: string;
   bloodGroup: BloodGroup;
+  /** Live mode: the account has no blood group on record yet (e.g. signed up on the website). */
+  bloodGroupMissing?: boolean;
   city: City;
   area: string;
   role: AccountRole;

@@ -1,7 +1,7 @@
 # LifeLink — Blood Donation App (Android)
 
 React Native / Expo app for LifeLink, connected to the **shared LifeLink backend** (Supabase). It uses the
-same database, accounts and business rules as the LifeDrop website and its admin dashboard. A request posted
+same database, accounts and business rules as the LifeLink website and its admin dashboard. A request posted
 here appears on the website and the dashboard, admin approvals show up here live, and so on.
 
 The app runs in one of three modes, chosen in `.env` (see [`.env.example`](.env.example)):

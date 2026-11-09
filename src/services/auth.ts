@@ -5,7 +5,7 @@ import { isLive } from './backend';
 
 /**
  * Authentication.
- * LIVE mode → Supabase Auth (shared with the LifeDrop website; passwords hashed server-side).
+ * LIVE mode → Supabase Auth (shared with the LifeLink website; passwords hashed server-side).
  * DEMO mode → local simulation against DEMO_CREDENTIALS (no network).
  */
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

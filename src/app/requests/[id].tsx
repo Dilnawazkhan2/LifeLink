@@ -60,7 +60,8 @@ export default function RequestDetail() {
   const rejected = request.status === 'rejected';
   const live = state.mode === 'live';
   const u = urgencyStyle[request.urgency];
-  const compatible = CanDonateTo[state.user.bloodGroup].includes(request.bloodGroup);
+  const groupKnown = !state.user.bloodGroupMissing;
+  const compatible = groupKnown && CanDonateTo[state.user.bloodGroup].includes(request.bloodGroup);
   const alreadyDonated = state.donations.some((d) => d.requestId === request.id);
 
   const share = async () => {
@@ -213,9 +214,11 @@ export default function RequestDetail() {
         <View style={[styles.compat, !compatible && styles.incompatible]}>
           <CircleCheck size={20} color={Colors.white} fill={compatible ? Colors.success : Colors.warning} />
           <Text style={[styles.compatText, !compatible && { color: '#92400E' }]}>
-            {compatible
-              ? `Your blood group (${state.user.bloodGroup}) is compatible with this request`
-              : `Your blood group (${state.user.bloodGroup}) is not compatible — share this request instead`}
+            {!groupKnown
+              ? 'Add your blood group in Edit Profile to check compatibility'
+              : compatible
+                ? `Your blood group (${state.user.bloodGroup}) is compatible with this request`
+                : `Your blood group (${state.user.bloodGroup}) is not compatible — share this request instead`}
           </Text>
         </View>
       )}

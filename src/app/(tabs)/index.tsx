@@ -73,7 +73,7 @@ export default function Home() {
           <View style={{ flex: 1 }}>
             <Text style={styles.bloodLabel}>YOUR BLOOD TYPE</Text>
             <View style={styles.bloodRow}>
-              <Text style={styles.bloodGroup}>{user.bloodGroup}</Text>
+              <Text style={styles.bloodGroup}>{user.bloodGroupMissing ? '—' : user.bloodGroup}</Text>
               {user.verified && (
                 <View style={styles.verified}>
                   <CircleCheck size={16} color={Colors.primary} fill={Colors.white} />

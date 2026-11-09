@@ -26,9 +26,11 @@ export function useRequestActions() {
       toast('You cannot respond to your own request', 'info');
       return;
     }
-    const compatible = CanDonateTo[state.user.bloodGroup].includes(request.bloodGroup);
+    const groupKnown = !state.user.bloodGroupMissing;
+    const compatible = groupKnown && CanDonateTo[state.user.bloodGroup].includes(request.bloodGroup);
     const warnings = [
-      !compatible && `Your blood group (${state.user.bloodGroup}) is not compatible with ${request.bloodGroup}, but you can still help find donors.`,
+      !groupKnown && 'Your blood group is not on your profile yet. Add it in Edit Profile so requesters know you can donate.',
+      groupKnown && !compatible && `Your blood group (${state.user.bloodGroup}) is not compatible with ${request.bloodGroup}, but you can still help find donors.`,
       !eligible && 'You donated recently and may not be eligible yet.',
     ].filter(Boolean);
 

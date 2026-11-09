@@ -15,7 +15,7 @@ import { Colors } from '@/constants/colors';
 import { BloodGroupTones } from '@/constants/bloodGroups';
 import type { AppNotification, BloodRequest, Donation, NotificationType } from '@/types';
 import { formatDayMonthYear, formatMonthDayYear, timeAgo } from '@/utils/date';
-import { formatDistance } from '@/utils/format';
+import { formatDistanceAway } from '@/utils/format';
 
 /* ----------------------------- NearbyRequestRow ---------------------------- */
 
@@ -57,7 +57,7 @@ export function NearbyRequestRow({
         </Text>
         <View style={styles.row}>
           <MapPin size={15} color={Colors.textMuted} />
-          <Text style={styles.nearbyMeta}>{formatDistance(request.distanceKm)} away</Text>
+          <Text style={styles.nearbyMeta}>{formatDistanceAway(request.distanceKm)}</Text>
           <Text style={styles.nearbyMeta}>·</Text>
           <BloodDropIcon size={14} variant="outline" color={Colors.textMuted} strokeWidth={1.8} />
           <Text style={styles.nearbyMeta}>{request.units} units</Text>

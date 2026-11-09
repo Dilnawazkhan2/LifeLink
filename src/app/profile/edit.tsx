@@ -24,7 +24,7 @@ const ROLES: { key: AccountRole; label: string }[] = [
   { key: 'recipient', label: 'Recipient' },
 ];
 
-type Field = 'name' | 'email' | 'phone' | 'area' | 'age' | 'weight';
+type Field = 'name' | 'email' | 'phone' | 'area' | 'age' | 'weight' | 'bloodGroup' | 'city';
 
 export default function EditProfile() {
   const insets = useSafeAreaInsets();
@@ -35,7 +35,9 @@ export default function EditProfile() {
   const [name, setName] = useState(u.name);
   const [email, setEmail] = useState(u.email);
   const [phone, setPhone] = useState(u.phone);
-  const [bloodGroup, setBloodGroup] = useState<BloodGroup>(u.bloodGroup);
+  // No blood group on record (e.g. website sign-up): start unselected instead of a placeholder value.
+  const initialGroup = u.bloodGroupMissing ? undefined : u.bloodGroup;
+  const [bloodGroup, setBloodGroup] = useState<BloodGroup | undefined>(initialGroup);
   const [city, setCity] = useState<City>(u.city);
   const [area, setArea] = useState(u.area);
   const [role, setRole] = useState<AccountRole>(u.role);
@@ -50,7 +52,7 @@ export default function EditProfile() {
     name !== u.name ||
     email !== u.email ||
     phone !== u.phone ||
-    bloodGroup !== u.bloodGroup ||
+    bloodGroup !== initialGroup ||
     city !== u.city ||
     area !== u.area ||
     role !== u.role ||
@@ -91,6 +93,9 @@ export default function EditProfile() {
       area: validateRequired(area, 'Area'),
       age: !Number.isInteger(ageNum) || ageNum < 17 || ageNum > 65 ? 'Donors must be 17–65 years old' : undefined,
       weight: !Number.isFinite(weightNum) || weightNum < 50 || weightNum > 200 ? 'Minimum weight to donate is 50 kg' : undefined,
+      // Donor accounts need both to be listed in donor search.
+      bloodGroup: role !== 'recipient' && !bloodGroup ? 'Select your blood group' : undefined,
+      city: role !== 'recipient' && !city ? 'Select your city' : undefined,
     };
     setErrors(next);
     if (Object.values(next).some(Boolean)) return;
@@ -101,7 +106,7 @@ export default function EditProfile() {
         name: name.trim(),
         email: email.trim(),
         phone: phone.trim(),
-        bloodGroup,
+        ...(bloodGroup ? { bloodGroup, bloodGroupMissing: false } : {}),
         city,
         area: area.trim(),
         role,
@@ -185,9 +190,10 @@ export default function EditProfile() {
           <Text style={styles.label}>Blood Group</Text>
           <View style={styles.wrap}>
             {BLOOD_GROUPS.map((g) => (
-              <Chip key={g} label={g} active={bloodGroup === g} onPress={() => setBloodGroup(g)} />
+              <Chip key={g} label={g} active={bloodGroup === g} onPress={() => { setBloodGroup(g); setErrors((e) => ({ ...e, bloodGroup: undefined })); }} />
             ))}
           </View>
+          {errors.bloodGroup && <Text style={styles.error}>{errors.bloodGroup}</Text>}
         </View>
         <View style={{ gap: 10 }}>
           <Text style={styles.label}>Account Role</Text>
@@ -201,9 +207,10 @@ export default function EditProfile() {
           <Text style={styles.label}>City</Text>
           <ChipRow style={{ marginHorizontal: -18 }}>
             {CITIES.map((c) => (
-              <Chip key={c} label={c} active={city === c} onPress={() => setCity(c)} />
+              <Chip key={c} label={c} active={city === c} onPress={() => { setCity(c); setErrors((e) => ({ ...e, city: undefined })); }} />
             ))}
           </ChipRow>
+          {errors.city && <Text style={styles.error}>{errors.city}</Text>}
         </View>
         <TextField label="Area" icon={MapPin} value={area} onChangeText={field('area', setArea)} error={errors.area} placeholder="e.g. DHA Phase 6" />
       </Card>
@@ -228,6 +235,7 @@ const styles = StyleSheet.create({
   },
   section: { fontSize: 18, fontWeight: '800', color: Colors.text },
   label: { fontSize: 15, fontWeight: '600', color: '#334155' },
+  error: { fontSize: 13, color: Colors.danger },
   twoCol: { flexDirection: 'row', gap: 12 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   footer: {
