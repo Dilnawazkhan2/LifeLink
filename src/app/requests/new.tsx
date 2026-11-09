@@ -65,7 +65,7 @@ export default function NewRequest() {
     });
   };
 
-  const submit = () => {
+  const submit = async () => {
     const next: Partial<Record<Field, string>> = {
       patientName: validateRequired(patientName, 'Patient name'),
       bloodGroup: bloodGroup ? undefined : 'Select the required blood group',
@@ -79,9 +79,9 @@ export default function NewRequest() {
     if (Object.values(next).some(Boolean) || !bloodGroup) return;
 
     setSubmitting(true);
-    // Simulated network latency — replace with API call when a backend exists.
-    setTimeout(() => {
-      const request = actions.createRequest({
+    if (state.mode === 'demo') await new Promise((r) => setTimeout(r, 700)); // simulated latency in demo mode
+    {
+      const request = await actions.createRequest({
         patientName: patientName.trim(),
         bloodGroup,
         units,
@@ -95,8 +95,8 @@ export default function NewRequest() {
         description: description.trim(),
       });
       setSubmitting(false);
-      setCreated(request);
-    }, 700);
+      if (request) setCreated(request); // errors are shown as a toast by the store
+    }
   };
 
   if (created) {
@@ -104,9 +104,11 @@ export default function NewRequest() {
       <Screen header={<StackHeader title="Request Posted" onBack={() => router.back()} />} contentStyle={{ flexGrow: 1, justifyContent: 'center' }}>
         <View style={styles.success}>
           <IconTile icon={CircleCheck} color={Colors.success} bg={Colors.successSoft} size={96} radius={32} iconSize={46} />
-          <Text style={styles.successTitle}>Request Posted!</Text>
+          <Text style={styles.successTitle}>{created.status === 'pending' ? 'Request Submitted!' : 'Request Posted!'}</Text>
           <Text style={styles.successText}>
-            Your blood request is now live. Nearby {created.bloodGroup} donors within {state.settings.searchRadiusKm} km will be notified.
+            {created.status === 'pending'
+              ? `Your request${created.referenceCode ? ` (${created.referenceCode})` : ''} was sent to the LifeLink team for a quick review. Compatible ${created.bloodGroup} donors will be notified as soon as it is approved.`
+              : `Your blood request is now live. Nearby ${created.bloodGroup} donors within ${state.settings.searchRadiusKm} km will be notified.`}
           </Text>
           <Button label="View Request" onPress={() => router.replace(`/requests/${created.id}`)} style={{ marginTop: 16 }} />
           <Button label="Back to Requests" variant="soft" onPress={() => router.back()} />

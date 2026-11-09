@@ -10,7 +10,7 @@ import { PageHeader } from '@/components/common/Headers';
 import { EmptyState } from '@/components/common/Misc';
 import { Screen } from '@/components/common/Screen';
 import { SearchBar } from '@/components/common/SearchBar';
-import { hospitals } from '@/data/hospitals';
+import { useApp } from '@/store/AppStore';
 import { CITIES, type City, type HospitalType } from '@/types';
 
 const TYPES: { key: HospitalType | 'All'; label: string }[] = [
@@ -21,13 +21,14 @@ const TYPES: { key: HospitalType | 'All'; label: string }[] = [
 ];
 
 export default function Hospitals() {
+  const { state, actions } = useApp();
   const [query, setQuery] = useState('');
   const [city, setCity] = useState<City | 'All'>('All');
   const [type, setType] = useState<HospitalType | 'All'>('All');
   const [bloodBankOnly, setBloodBankOnly] = useState(false);
 
   const q = query.trim().toLowerCase();
-  const results = hospitals
+  const results = state.hospitals
     .filter((h) => (city === 'All' ? true : h.city === city))
     .filter((h) => (type === 'All' ? true : h.type === type))
     .filter((h) => (bloodBankOnly ? h.hasBloodBank : true))
@@ -42,7 +43,7 @@ export default function Hospitals() {
   };
 
   return (
-    <Screen withTabBar contentStyle={{ gap: 14 }}>
+    <Screen withTabBar contentStyle={{ gap: 14 }} refreshing={state.syncing} onRefresh={state.mode === 'live' ? actions.refresh : undefined}>
       <View style={styles.bleed}>
         <PageHeader title="Partner Hospitals" subtitle={`${results.length} hospital${results.length === 1 ? '' : 's'} found`} />
       </View>

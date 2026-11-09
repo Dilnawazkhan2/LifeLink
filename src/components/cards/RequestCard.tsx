@@ -6,6 +6,7 @@ import { Colors } from '@/constants/colors';
 import { Shadows } from '@/constants/theme';
 import type { BloodRequest, Urgency } from '@/types';
 import { timeAgo } from '@/utils/date';
+import { place } from '@/utils/format';
 
 export const urgencyStyle: Record<Urgency, { label: string; color: string; bg: string }> = {
   critical: { label: 'CRITICAL', color: Colors.white, bg: '#EF4444' },
@@ -64,7 +65,7 @@ export function RequestCard({ request, onPress, onContact, responded }: Props) {
             </Text>
           </View>
           <Text style={styles.area}>
-            {request.area}, {request.city}
+            {place(request.area, request.city)}
           </Text>
         </View>
         <View style={{ alignItems: 'center', gap: 8 }}>
@@ -97,6 +98,10 @@ export function RequestCard({ request, onPress, onContact, responded }: Props) {
           <Text style={[styles.status, { color: Colors.successDark }]}>✓ You</Text>
         ) : fulfilled ? (
           <Text style={[styles.status, { color: Colors.textMuted }]}>Closed</Text>
+        ) : request.status === 'pending' ? (
+          <Text style={[styles.status, { color: Colors.warning }]}>In review</Text>
+        ) : request.status === 'rejected' || request.status === 'cancelled' ? (
+          <Text style={[styles.status, { color: Colors.textMuted }]}>Not approved</Text>
         ) : (
           <View style={styles.row}>
             <View style={[styles.statusDot, { backgroundColor: request.urgency === 'normal' ? Colors.success : Colors.danger }]} />

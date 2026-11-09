@@ -10,8 +10,9 @@ export const initials = (name: string) =>
 
 export const firstName = (name: string) => name.split(' ')[0] ?? name;
 
+/** 0 = same city without precise coordinates (live mode estimates distance from city centres). */
 export const formatDistance = (km: number) =>
-  km < 10 ? `${km.toFixed(1)} km` : `${Math.round(km).toLocaleString('en-US')} km`;
+  km <= 0 ? 'Your city' : km >= 9999 ? '—' : km < 10 ? `${km.toFixed(1)} km` : `${Math.round(km).toLocaleString('en-US')} km`;
 
 export const formatCount = (n: number) => n.toLocaleString('en-US');
 
@@ -25,3 +26,6 @@ export const availabilityLabel: Record<Availability, string> = {
   resting: 'Resting',
   busy: 'Busy',
 };
+
+/** "Area, City" without dangling commas when either part is missing. */
+export const place = (area?: string, city?: string) => [area, city].map((s) => s?.trim()).filter(Boolean).join(', ');

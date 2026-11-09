@@ -1,6 +1,6 @@
 import * as Linking from 'expo-linking';
 import { CircleAlert, CircleCheck, Info, MessageSquareText, Phone, X, type LucideIcon } from 'lucide-react-native';
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -58,7 +58,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   const [toastState, setToastState] = useState<{ message: string; tone: Tone; key: number } | null>(null);
   const [dialog, setDialog] = useState<ConfirmOptions | null>(null);
   const [contactTarget, setContactTarget] = useState<ContactTarget | null>(null);
-  const opacity = useRef(new Animated.Value(0)).current;
+  const [opacity] = useState(() => new Animated.Value(0));
 
   const toast = useCallback((message: string, tone: Tone = 'success') => {
     setToastState({ message, tone, key: Date.now() });

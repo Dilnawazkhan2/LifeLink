@@ -15,7 +15,7 @@ import { SCREEN_PADDING, Shadows } from '@/constants/theme';
 import { useRequestActions } from '@/hooks/useRequestActions';
 import { useApp, useEligibility, useStats } from '@/store/AppStore';
 import { daysUntil, formatMonthDayYear, getGreeting, parseDate } from '@/utils/date';
-import { firstName } from '@/utils/format';
+import { firstName, place } from '@/utils/format';
 
 export default function Home() {
   const { state, actions } = useApp();
@@ -84,7 +84,7 @@ export default function Home() {
             <View style={styles.locationRow}>
               <MapPin size={15} color="rgba(255,255,255,0.8)" />
               <Text style={styles.location} numberOfLines={1}>
-                {user.area}, {user.city}
+                {place(user.area, user.city)}
               </Text>
             </View>
           </View>

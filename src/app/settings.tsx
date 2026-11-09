@@ -23,6 +23,7 @@ import { StackHeader } from '@/components/common/Headers';
 import { ListRow, ToggleRow } from '@/components/common/Misc';
 import { Screen } from '@/components/common/Screen';
 import { Colors } from '@/constants/colors';
+import { backendLabel } from '@/services/backend';
 import { useApp } from '@/store/AppStore';
 import type { AppSettings } from '@/types';
 
@@ -102,8 +103,21 @@ export default function Settings() {
         <ListRow icon={Info} iconColor={Colors.textMuted} iconBg="#F8FAFC" title="About LifeLink" subtitle="Version 1.0.0" onPress={() => router.push('/about')} last />
       </Card>
 
-      <Text style={styles.group}>Demo</Text>
+      <Text style={styles.group}>{state.mode === 'live' ? 'Account' : 'Demo'}</Text>
       <Card style={styles.card}>
+        {state.mode === 'live' ? (
+          <ListRow
+            icon={RotateCcw}
+            iconColor={Colors.info}
+            iconBg={Colors.infoSoft}
+            title="Sync Now"
+            subtitle={`Connected to ${backendLabel}`}
+            onPress={async () => {
+              await actions.refresh();
+              toast('Data refreshed');
+            }}
+          />
+        ) : (
         <ListRow
           icon={RotateCcw}
           iconColor={Colors.warningDark}
@@ -124,6 +138,7 @@ export default function Settings() {
             })
           }
         />
+        )}
         <ListRow
           icon={LogOut}
           iconColor={Colors.danger}
@@ -137,8 +152,8 @@ export default function Settings() {
               confirmLabel: 'Sign Out',
               destructive: true,
               icon: LogOut,
-              onConfirm: () => {
-                actions.logout();
+              onConfirm: async () => {
+                await actions.logout();
                 router.replace('/login');
               },
             })

@@ -1,8 +1,9 @@
 export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
 export type BloodGroup = (typeof BLOOD_GROUPS)[number];
 
-export const CITIES = ['Karachi', 'Lahore', 'Islamabad', 'Rawalpindi', 'Hyderabad'] as const;
-export type City = (typeof CITIES)[number];
+/** Cities offered in pickers/filters. The backend accepts any city name (normalised server-side). */
+export const CITIES = ['Karachi', 'Lahore', 'Islamabad', 'Rawalpindi', 'Hyderabad', 'Faisalabad', 'Multan', 'Peshawar', 'Quetta'] as const;
+export type City = string;
 
 export type Availability = 'available' | 'resting' | 'busy';
 export type AccountRole = 'donor' | 'recipient' | 'both';
@@ -19,12 +20,16 @@ export interface UserProfile {
   verified: boolean;
   availability: Availability;
   avatarUri?: string;
+  /** Backend only: storage path of the avatar (avatars/<uid>/...) */
+  avatarPath?: string;
   livesSaved: number;
   rating: number;
   age: number;
   weightKg: number;
   gender: 'Male' | 'Female';
   memberSince: string; // ISO date
+  /** Backend only: admin/moderator roles */
+  roles?: string[];
 }
 
 export interface Donor {
@@ -49,7 +54,11 @@ export interface Donor {
 }
 
 export type Urgency = 'critical' | 'urgent' | 'normal';
-export type RequestStatus = 'active' | 'fulfilled';
+/**
+ * 'active' = published and open to donors (server status approved or active).
+ * 'pending' (awaiting admin review), 'rejected' and 'cancelled' are only ever shown to the requester.
+ */
+export type RequestStatus = 'pending' | 'active' | 'fulfilled' | 'rejected' | 'cancelled';
 
 export interface BloodRequest {
   id: string;
@@ -70,6 +79,11 @@ export interface BloodRequest {
   distanceKm: number;
   /** true when the logged-in user posted this request */
   isMine?: boolean;
+  /** Backend only: tracking code (BR-YYYY-NNNNNN), raw workflow status and admin reason */
+  referenceCode?: string;
+  serverStatus?: 'pending' | 'approved' | 'active' | 'fulfilled' | 'rejected' | 'cancelled';
+  statusReason?: string;
+  source?: 'website' | 'android' | 'admin';
 }
 
 export type HospitalType = 'Private' | 'Public' | 'Semi-Government';

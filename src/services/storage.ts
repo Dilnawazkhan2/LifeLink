@@ -1,6 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const KEY = 'lifelink:state:v1';
+import { isLive } from './backend';
+
+// Demo and live data are cached under different keys so switching modes never mixes them.
+const KEY = isLive ? 'lifelink:state:live:v1' : 'lifelink:state:v1';
 
 export async function loadSnapshot<T>(): Promise<T | null> {
   try {

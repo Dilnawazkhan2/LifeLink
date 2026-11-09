@@ -12,6 +12,7 @@ import { TextField } from '@/components/forms/TextField';
 import { Colors } from '@/constants/colors';
 import { DEMO_CREDENTIALS } from '@/data/user';
 import * as auth from '@/services/auth';
+import { isLive } from '@/services/backend';
 import { useApp } from '@/store/AppStore';
 import { validateEmail, validatePassword } from '@/utils/validation';
 
@@ -106,13 +107,22 @@ export default function Login() {
 
             <Button label="Sign In" size="lg" loading={loading} onPress={() => submit()} style={styles.signIn} />
 
-            <Pressable onPress={useDemo} disabled={loading} style={styles.demo} accessibilityRole="button">
-              <Sparkles size={18} color={Colors.primary} />
-              <Text style={styles.demoText}>Use Demo Account</Text>
-            </Pressable>
-            <Text style={styles.demoHint}>
-              Demo: {DEMO_CREDENTIALS.email} · {DEMO_CREDENTIALS.password}
-            </Text>
+            {isLive ? (
+              <Pressable onPress={() => router.push('/register')} disabled={loading} style={styles.demo} accessibilityRole="link">
+                <Text style={styles.demoHint}>New to LifeLink?</Text>
+                <Text style={styles.demoText}>Create an account</Text>
+              </Pressable>
+            ) : (
+              <>
+                <Pressable onPress={useDemo} disabled={loading} style={styles.demo} accessibilityRole="button">
+                  <Sparkles size={18} color={Colors.primary} />
+                  <Text style={styles.demoText}>Use Demo Account</Text>
+                </Pressable>
+                <Text style={styles.demoHint}>
+                  Demo: {DEMO_CREDENTIALS.email} · {DEMO_CREDENTIALS.password}
+                </Text>
+              </>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

@@ -12,14 +12,13 @@ import { SearchBar } from '@/components/common/SearchBar';
 import { Button } from '@/components/common/Button';
 import { Colors } from '@/constants/colors';
 import { Shadows } from '@/constants/theme';
-import { donors } from '@/data/donors';
 import { useApp } from '@/store/AppStore';
 import { BLOOD_GROUPS, type BloodGroup } from '@/types';
 
 type SortKey = 'distance' | 'donations' | 'rating';
 
 export default function Donors() {
-  const { state } = useApp();
+  const { state, actions } = useApp();
   const [query, setQuery] = useState('');
   const [group, setGroup] = useState<BloodGroup | 'All'>('All');
   const [sort, setSort] = useState<SortKey>('distance');
@@ -28,7 +27,7 @@ export default function Donors() {
   const radius = state.settings.searchRadiusKm;
 
   const q = query.trim().toLowerCase();
-  const results = donors
+  const results = state.donors
     .filter((d) => (group === 'All' ? true : d.bloodGroup === group))
     .filter((d) => (availableOnly ? d.availability === 'available' : true))
     .filter((d) => (nearbyOnly ? d.distanceKm <= radius : true))
@@ -45,7 +44,7 @@ export default function Donors() {
   };
 
   return (
-    <Screen withTabBar contentStyle={{ gap: 14 }}>
+    <Screen withTabBar contentStyle={{ gap: 14 }} refreshing={state.syncing} onRefresh={state.mode === 'live' ? actions.refresh : undefined}>
       <View style={{ marginHorizontal: -20 }}>
         <PageHeader
           title="Find Donors"

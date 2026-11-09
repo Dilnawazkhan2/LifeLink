@@ -7,9 +7,10 @@ import { StackHeader } from '@/components/common/Headers';
 import { IconTile } from '@/components/common/Misc';
 import { Screen } from '@/components/common/Screen';
 import { Colors } from '@/constants/colors';
-import { badges } from '@/data/badges';
+import { useApp } from '@/store/AppStore';
 
 export default function Badges() {
+  const { badges } = useApp().state;
   const earned = badges.filter((b) => b.earnedAt);
   const locked = badges.filter((b) => !b.earnedAt);
 

@@ -1,13 +1,21 @@
-# LifeLink — Blood Donation App (Android frontend)
+# LifeLink — Blood Donation App (Android)
 
-A frontend-only React Native / Expo recreation of the LifeLink blood donation app, built from the
-reference screenshots in `reference/`. All data is mock data held in local state and persisted with
-AsyncStorage. There is no backend, database or real authentication.
+React Native / Expo app for LifeLink, connected to the **shared LifeLink backend** (Supabase). It uses the
+same database, accounts and business rules as the LifeDrop website and its admin dashboard. A request posted
+here appears on the website and the dashboard, admin approvals show up here live, and so on.
+
+The app runs in one of three modes, chosen in `.env` (see [`.env.example`](.env.example)):
+
+| `EXPO_PUBLIC_SUPABASE_URL` | Mode |
+|---|---|
+| *(empty)* or `demo` | **Demo**: bundled mock data, no network (the original offline prototype) |
+| `local` | **Local dev server**: `npm run dev` in `../LifeLink Platform` (no Docker, no cloud) |
+| `https://<ref>.supabase.co` (+ `EXPO_PUBLIC_SUPABASE_ANON_KEY`) | **Production**: your Supabase project |
 
 - **Expo SDK 58**, React Native 0.88, React 19, TypeScript (strict)
 - **Expo Router** (file-based routing, JS tabs with a custom tab bar)
-- lucide-react-native + react-native-svg icons, expo-linear-gradient, expo-image-picker,
-  @react-native-async-storage/async-storage
+- **@supabase/supabase-js** (auth, RPC, realtime, storage) with sessions in AsyncStorage
+- lucide-react-native + react-native-svg icons, expo-linear-gradient, expo-image-picker
 
 Design notes and the APK inspection results are in [`docs/reference-notes.md`](docs/reference-notes.md).
 
@@ -32,7 +40,9 @@ To preview in a browser:
 npm run web
 ```
 
-**Demo login:** `umer.abdullah@email.com` / `lifelink123`. You can also tap **Use Demo Account** on the login screen.
+**Demo mode login:** `umer.abdullah@email.com` / `lifelink123` (or tap **Use Demo Account**).
+**Local dev server:** the same email/password works because the dev seed creates that account; new users can sign up with **Create an account**.
+**Production:** real accounts only. Sign up in the app or on the website; both use the same account.
 
 ## Scripts
 
@@ -49,7 +59,11 @@ npm run web
 1. Run `npm start` on your computer.
 2. Put the phone on the **same Wi-Fi** network and open **Expo Go**.
 3. Scan the QR code in the terminal. The app loads on the onboarding screen.
-4. To restart the walkthrough: Settings → **Reset Demo Data**, or clear Expo Go's storage for the app.
+4. To restart the walkthrough in demo mode: Settings → **Reset Demo Data**, or clear Expo Go's storage for the app.
+   In live mode Settings shows **Sync Now** and which backend the app is connected to.
+5. Testing against the local dev server from a phone: run `npm run dev` in `../LifeLink Platform` on the same computer and
+   set `EXPO_PUBLIC_SUPABASE_URL=local` in `.env.local`. The app finds the server through the Metro host address
+   (allow Node.js through the Windows firewall on private networks if the phone cannot connect).
 
 Suggested test path:
 
@@ -74,6 +88,7 @@ npx eas-cli@latest login
 npm run build:apk
 ```
 
+Put the production backend values in `.env` first (see `.env.example`); `EXPO_PUBLIC_*` values are baked into the build.
 The `preview` profile in `eas.json` produces a directly installable `.apk`. EAS prints a download link and a QR code when the build finishes.
 For a Play Store bundle (`.aab`), use:
 
@@ -92,11 +107,11 @@ src/
     _layout.tsx           Providers (store, feedback), splash gating, root stack
     index.tsx             Redirect → onboarding / login / tabs
     onboarding.tsx
-    (auth)/               login, forgot-password
+    (auth)/               login, register, forgot-password
     (tabs)/               index (Home), donors, requests, hospitals, profile + custom tab bar
     donors/[id].tsx       Donor profile
     requests/new.tsx      Create blood request
-    requests/[id].tsx     Request details (respond, donate, fulfil, delete)
+    requests/[id].tsx     Request details (respond, donate, fulfil, cancel)
     hospitals/[id].tsx    Hospital details & inventory
     profile/              edit, donations, badges
     notifications.tsx, assistant.tsx, settings.tsx, about.tsx
@@ -107,23 +122,28 @@ src/
     navigation/TabBar.tsx Elevated centre blood-drop tab
     icons/                Custom SVG blood drop, medical cross, filled home
   constants/              colors, theme (spacing/radius/shadows), blood group tones & compatibility
-  data/                   Mock data: user, donors, requests, hospitals, notifications, donations, badges, assistant
-  services/               LOCAL SIMULATIONS of backend calls (auth, assistant, storage), the backend seam
-  store/AppStore.tsx      Reducer + context + AsyncStorage persistence + selectors
+  data/                   Demo-mode mock data: user, donors, requests, hospitals, notifications, donations, badges, assistant
+  services/               backend.ts (Supabase client + mode), api.ts (all server calls → domain types), auth.ts, storage.ts, assistant.ts
+  store/AppStore.tsx      Reducer + context; live mode: initial load, server-backed actions, realtime refresh, offline cache
   hooks/                  useRequestActions (shared respond/contact flows)
   types/, utils/          Domain types, date/format/validation helpers
 ```
 
-## Backend integration later
+## Backend integration
 
-Screens only talk to the store (`useApp()`), and the store calls `src/services/*`. To connect a real API,
-replace the service functions (same async signatures) and load seed data from the API instead of `src/data/*`.
-See [`src/services/README.md`](src/services/README.md).
+Screens only talk to the store (`useApp()`); the store calls `src/services/api.ts`, which maps database rows to
+the same domain types the screens always used. Business rules (validation, approval workflow, permissions) are
+enforced in the database. See [`src/services/README.md`](src/services/README.md) and `../LifeLink Platform/docs/api.md`.
+
+- Requests from unverified accounts start as **pending review** (shown as "In review"); verified accounts go live at once.
+- Donor phone numbers are revealed only to signed-in users through the server (each reveal is logged).
+- Distances are estimated from city centres (the backend stores cities, not GPS positions); hospitals use their coordinates.
+- "Delete" on your own request becomes **Cancel** in live mode (requests keep their audit trail).
 
 ## Notes
 
 - The supplied APK (`com.blooddonation.app`) contains an older build branded "BloodConnect" that does not
   match the screenshots. The screenshots were used as the source of truth, and the APK only supplied copy
   for screens with no screenshot. Details are in `docs/reference-notes.md`.
-- Phone calls, SMS and maps open the device's native apps through deep links. Everything else is simulated locally.
+- Phone calls, SMS and maps open the device's native apps through deep links.
 - The AI Assistant uses keyword-matched local answers (no LLM calls).

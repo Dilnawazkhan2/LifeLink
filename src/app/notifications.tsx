@@ -24,8 +24,9 @@ export default function Notifications() {
   const unread = state.notifications.filter((n) => !n.read).length;
   const list = state.notifications.filter((n) => (filter === 'unread' ? !n.read : true));
 
-  const today = list.filter((n) => Date.now() - Date.parse(n.createdAt) < DAY);
-  const earlier = list.filter((n) => Date.now() - Date.parse(n.createdAt) >= DAY);
+  const [now] = useState(() => Date.now()); // render-stable 'now' for grouping
+  const today = list.filter((n) => now - Date.parse(n.createdAt) < DAY);
+  const earlier = list.filter((n) => now - Date.parse(n.createdAt) >= DAY);
 
   const open = (n: AppNotification) => {
     actions.markNotificationRead(n.id);

@@ -81,7 +81,7 @@ export default function EditProfile() {
     }
   };
 
-  const save = () => {
+  const save = async () => {
     const ageNum = Number(age);
     const weightNum = Number(weight);
     const next: Partial<Record<Field, string>> = {
@@ -95,8 +95,9 @@ export default function EditProfile() {
     setErrors(next);
     if (Object.values(next).some(Boolean)) return;
     setSaving(true);
-    setTimeout(() => {
-      actions.updateUser({
+    if (state.mode === 'demo') await new Promise((r) => setTimeout(r, 500)); // simulated latency in demo mode
+    {
+      const ok = await actions.updateUser({
         name: name.trim(),
         email: email.trim(),
         phone: phone.trim(),
@@ -110,9 +111,10 @@ export default function EditProfile() {
         avatarUri,
       });
       setSaving(false);
+      if (!ok) return; // error toast shown by the store
       toast('Profile updated');
       router.back();
-    }, 500);
+    }
   };
 
   const field = (f: Field, setter: (v: string) => void) => (v: string) => {

@@ -28,7 +28,7 @@ import { CanDonateTo } from '@/constants/bloodGroups';
 import { useRequestActions } from '@/hooks/useRequestActions';
 import { useApp } from '@/store/AppStore';
 import { formatMonthDayYear, formatTime, timeAgo } from '@/utils/date';
-import { formatDistance } from '@/utils/format';
+import { formatDistance, place } from '@/utils/format';
 
 const GUIDELINES = [
   'Bring a valid ID (CNIC) to the hospital',
@@ -56,6 +56,9 @@ export default function RequestDetail() {
 
   const responded = hasResponded(request.id);
   const fulfilled = request.status === 'fulfilled';
+  const pending = request.status === 'pending';
+  const rejected = request.status === 'rejected';
+  const live = state.mode === 'live';
   const u = urgencyStyle[request.urgency];
   const compatible = CanDonateTo[state.user.bloodGroup].includes(request.bloodGroup);
   const alreadyDonated = state.donations.some((d) => d.requestId === request.id);
@@ -77,9 +80,9 @@ export default function RequestDetail() {
       confirmLabel: 'Yes, I Donated',
       tone: 'success',
       icon: CircleCheck,
-      onConfirm: () => {
-        actions.recordDonation({ hospitalName: request.hospitalName, city: request.city, units: 1, requestId: request.id });
-        toast('Thank you! Donation added to your history.');
+      onConfirm: async () => {
+        if (await actions.recordDonation({ hospitalName: request.hospitalName, city: request.city, units: 1, requestId: request.id }))
+          toast('Thank you! Donation added to your history.');
       },
     });
 
@@ -89,9 +92,8 @@ export default function RequestDetail() {
       message: 'The requester will be informed that you can no longer donate for this request.',
       confirmLabel: 'Withdraw',
       destructive: true,
-      onConfirm: () => {
-        actions.withdrawResponse(request.id);
-        toast('Response withdrawn', 'info');
+      onConfirm: async () => {
+        if (await actions.withdrawResponse(request.id)) toast('Response withdrawn', 'info');
       },
     });
 
@@ -102,33 +104,38 @@ export default function RequestDetail() {
       confirmLabel: 'Mark Fulfilled',
       tone: 'success',
       icon: CircleCheck,
-      onConfirm: () => {
-        actions.markRequestFulfilled(request.id);
-        toast('Request marked as fulfilled');
+      onConfirm: async () => {
+        if (await actions.markRequestFulfilled(request.id)) toast('Request marked as fulfilled');
       },
     });
 
   const remove = () =>
     confirm({
-      title: 'Delete Request?',
-      message: 'This will permanently remove your blood request.',
-      confirmLabel: 'Delete',
+      title: live ? 'Cancel Request?' : 'Delete Request?',
+      message: live
+        ? 'Your request will be closed and donors who responded will be notified.'
+        : 'This will permanently remove your blood request.',
+      confirmLabel: live ? 'Cancel Request' : 'Delete',
       destructive: true,
       icon: Trash2,
-      onConfirm: () => {
-        actions.deleteRequest(request.id);
+      onConfirm: async () => {
+        if (!(await actions.deleteRequest(request.id))) return;
         router.back();
-        toast('Request deleted', 'info');
+        toast(live ? 'Request cancelled' : 'Request deleted', 'info');
       },
     });
 
   let footerContent: React.ReactNode;
-  if (request.isMine) {
+  if (request.isMine && rejected) {
+    footerContent = <Button label="This request was not approved" variant="soft" color={Colors.textMuted} disabled />;
+  } else if (request.isMine && pending) {
+    footerContent = <Button label="Cancel Request" variant="outline" color={Colors.danger} icon={<Trash2 size={18} color={Colors.danger} />} onPress={remove} />;
+  } else if (request.isMine) {
     footerContent = fulfilled ? (
       <Button label="Delete Request" variant="outline" color={Colors.danger} icon={<Trash2 size={18} color={Colors.danger} />} onPress={remove} />
     ) : (
       <>
-        <Button label="Delete" variant="outline" color={Colors.danger} onPress={remove} style={{ flex: 1 }} />
+        <Button label={live ? 'Cancel' : 'Delete'} variant="outline" color={Colors.danger} onPress={remove} style={{ flex: 1 }} />
         <Button label="Mark Fulfilled" variant="solid" color={Colors.success} onPress={markFulfilled} style={{ flex: 1.6 }} />
       </>
     );
@@ -170,9 +177,9 @@ export default function RequestDetail() {
       <Card style={{ gap: 14 }}>
         <View style={styles.tagRow}>
           <Pill
-            label={fulfilled ? 'FULFILLED' : u.label}
-            color={fulfilled ? Colors.successDark : u.color}
-            bg={fulfilled ? Colors.successSoft : u.bg}
+            label={fulfilled ? 'FULFILLED' : pending ? 'PENDING REVIEW' : rejected ? 'NOT APPROVED' : u.label}
+            color={fulfilled ? Colors.successDark : pending ? Colors.warning : rejected ? Colors.textMuted : u.color}
+            bg={fulfilled ? Colors.successSoft : pending ? Colors.warningSoft : rejected ? Colors.background : u.bg}
             style={{ borderRadius: 8, height: 30 }}
           />
           {request.isMine && <Pill label="Your request" color={Colors.purpleDark} bg={Colors.purpleSoft} style={{ borderRadius: 8, height: 30 }} />}
@@ -188,6 +195,12 @@ export default function RequestDetail() {
           <BloodBadge group={request.bloodGroup} size="lg" />
         </View>
         <Text style={styles.desc}>{request.description}</Text>
+        {pending && (
+          <Text style={styles.meta}>
+            Submitted for review{request.referenceCode ? ` · ${request.referenceCode}` : ''}. Donors are notified once the LifeLink team approves it.
+          </Text>
+        )}
+        {rejected && !!request.statusReason && <Text style={styles.meta}>Reason: {request.statusReason}</Text>}
         <View style={styles.respondedRow}>
           <Users size={18} color={Colors.success} fill={Colors.success} />
           <Text style={styles.respondedText}>
@@ -196,7 +209,7 @@ export default function RequestDetail() {
         </View>
       </Card>
 
-      {!request.isMine && !fulfilled && (
+      {!request.isMine && !fulfilled && !pending && !rejected && (
         <View style={[styles.compat, !compatible && styles.incompatible]}>
           <CircleCheck size={20} color={Colors.white} fill={compatible ? Colors.success : Colors.warning} />
           <Text style={[styles.compatText, !compatible && { color: '#92400E' }]}>
@@ -209,7 +222,7 @@ export default function RequestDetail() {
 
       <Card style={{ paddingVertical: 6 }}>
         <InfoRow icon={Building2} iconColor={Colors.primary} iconBg={Colors.primarySoft} label="Hospital" value={request.hospitalName} />
-        <InfoRow icon={MapPin} iconColor={Colors.warning} iconBg={Colors.warningSoft} label="Location" value={`${request.area}, ${request.city} · ${formatDistance(request.distanceKm)}`} />
+        <InfoRow icon={MapPin} iconColor={Colors.warning} iconBg={Colors.warningSoft} label="Location" value={`${place(request.area, request.city)} · ${formatDistance(request.distanceKm)}`} />
         <InfoRow icon={User} iconColor={Colors.info} iconBg={Colors.infoSoft} label="Contact Person" value={request.contactName} />
         <InfoRow icon={Phone} iconColor={Colors.success} iconBg={Colors.successSoft} label="Phone" value={request.contactPhone} />
         <InfoRow icon={Clock} iconColor={Colors.purple} iconBg={Colors.purpleSoft} label="Posted" value={`${formatMonthDayYear(request.createdAt)} · ${formatTime(request.createdAt)}`} last />

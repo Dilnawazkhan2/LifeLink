@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { BadgeCheck, CalendarDays, Clock, HeartHandshake, MapPin, Navigation, Phone, Share2, Star, User, UserX } from 'lucide-react-native';
+import { useEffect } from 'react';
 import { Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,15 +16,21 @@ import { Screen } from '@/components/common/Screen';
 import { BloodDropIcon } from '@/components/icons';
 import { Colors } from '@/constants/colors';
 import { BloodGroupTones, CanDonateTo } from '@/constants/bloodGroups';
-import { donors } from '@/data/donors';
+import { useApp } from '@/store/AppStore';
 import { formatMonthDayYear } from '@/utils/date';
-import { availabilityLabel, formatDistance } from '@/utils/format';
+import { availabilityLabel, formatDistance, place } from '@/utils/format';
 
 export default function DonorDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { contact, toast } = useFeedback();
-  const donor = donors.find((d) => d.id === id);
+  const { state, actions } = useApp();
+  const donor = state.donors.find((d) => d.id === id);
+
+  // Live mode: the list only carries discovery fields; load the full public profile.
+  useEffect(() => {
+    if (id) actions.loadDonor(id);
+  }, [id, actions]);
 
   if (!donor) {
     return (
@@ -35,7 +42,7 @@ export default function DonorDetail() {
 
   const share = async () => {
     try {
-      await Share.share({ message: `${donor.name} (${donor.bloodGroup}) is a verified blood donor in ${donor.area}, ${donor.city} — found on LifeLink.` });
+      await Share.share({ message: `${donor.name} (${donor.bloodGroup}) is a verified blood donor in ${place(donor.area, donor.city)} — found on LifeLink.` });
     } catch {
       toast('Sharing is not available', 'error');
     }
@@ -47,7 +54,11 @@ export default function DonorDetail() {
         label="Contact"
         variant="outline"
         icon={<Phone size={18} color={Colors.primary} />}
-        onPress={() => contact({ name: donor.name, phone: donor.phone, subtitle: `${donor.bloodGroup} donor · ${donor.area}` })}
+        onPress={async () => {
+          // Live mode: the phone number is revealed by the server for signed-in users only (logged).
+          const c = donor.phone ? { name: donor.name, phone: donor.phone } : await actions.getDonorContact(donor.id);
+          if (c?.phone) contact({ name: c.name, phone: c.phone, subtitle: `${donor.bloodGroup} donor · ${donor.area || donor.city}` });
+        }}
         style={{ flex: 1 }}
       />
       <Button
@@ -82,7 +93,7 @@ export default function DonorDetail() {
         <View style={styles.row}>
           <MapPin size={16} color={Colors.textMuted} />
           <Text style={styles.meta}>
-            {donor.area}, {donor.city}
+            {place(donor.area, donor.city)}
           </Text>
         </View>
         <View style={styles.badges}>
@@ -105,7 +116,7 @@ export default function DonorDetail() {
 
       <Card style={{ gap: 10 }}>
         <Text style={styles.cardTitle}>About</Text>
-        <Text style={styles.about}>{donor.about}</Text>
+        <Text style={styles.about}>{donor.about || 'This donor has not added an introduction yet.'}</Text>
       </Card>
 
       <Card style={{ gap: 12 }}>
@@ -121,9 +132,9 @@ export default function DonorDetail() {
 
       <Card style={{ paddingVertical: 6 }}>
         <InfoRow icon={Clock} iconColor={Colors.info} iconBg={Colors.infoSoft} label="Available Hours" value={donor.hours} />
-        <InfoRow icon={CalendarDays} iconColor={Colors.primary} iconBg={Colors.primarySoft} label="Last Donation" value={formatMonthDayYear(donor.lastDonation)} />
-        <InfoRow icon={User} iconColor={Colors.purple} iconBg={Colors.purpleSoft} label="Age & Gender" value={`${donor.age} years · ${donor.gender}`} />
-        <InfoRow icon={HeartHandshake} iconColor={Colors.success} iconBg={Colors.successSoft} label="Member Since" value={formatMonthDayYear(donor.memberSince)} last />
+        <InfoRow icon={CalendarDays} iconColor={Colors.primary} iconBg={Colors.primarySoft} label="Last Donation" value={donor.lastDonation ? formatMonthDayYear(donor.lastDonation) : 'No donations recorded yet'} />
+        <InfoRow icon={User} iconColor={Colors.purple} iconBg={Colors.purpleSoft} label="Age & Gender" value={donor.age ? `${donor.age} years · ${donor.gender}` : donor.gender} />
+        <InfoRow icon={HeartHandshake} iconColor={Colors.success} iconBg={Colors.successSoft} label="Member Since" value={donor.memberSince ? formatMonthDayYear(donor.memberSince) : '—'} last />
       </Card>
     </Screen>
   );

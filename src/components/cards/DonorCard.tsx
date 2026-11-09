@@ -7,7 +7,7 @@ import { Card } from '@/components/common/Card';
 import { BloodDropIcon } from '@/components/icons';
 import { Colors } from '@/constants/colors';
 import type { Availability, Donor } from '@/types';
-import { availabilityLabel, formatDistance } from '@/utils/format';
+import { availabilityLabel, formatDistance, place } from '@/utils/format';
 
 export const availabilityColor: Record<Availability, string> = {
   available: Colors.success,
@@ -30,7 +30,7 @@ export function DonorCard({ donor, onPress }: { donor: Donor; onPress: () => voi
           <View style={styles.metaRow}>
             <MapPin size={15} color={Colors.textMuted} />
             <Text style={styles.meta} numberOfLines={1}>
-              {donor.area}, {donor.city}
+              {place(donor.area, donor.city)}
             </Text>
           </View>
           <View style={styles.metaRow}>

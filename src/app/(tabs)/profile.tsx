@@ -36,11 +36,10 @@ import { BloodDropIcon } from '@/components/icons';
 import { Colors, Gradients } from '@/constants/colors';
 import { BloodGroupTones } from '@/constants/bloodGroups';
 import { SCREEN_PADDING, Shadows } from '@/constants/theme';
-import { badges } from '@/data/badges';
 import { useApp, useEligibility, useStats } from '@/store/AppStore';
 import type { Availability } from '@/types';
 import { formatMonthDayYear, parseDate } from '@/utils/date';
-import { roleLabel } from '@/utils/format';
+import { roleLabel, place } from '@/utils/format';
 
 const AVAILABILITY: { key: Availability; label: string; icon: typeof CircleCheck; color: string; bg: string; border: string }[] = [
   { key: 'available', label: 'Available', icon: CircleCheck, color: Colors.success, bg: Colors.successSoft, border: '#86EFAC' },
@@ -55,7 +54,7 @@ export default function Profile() {
   const { confirm, toast } = useFeedback();
   const { user } = state;
   const recent = [...state.donations].sort((a, b) => parseDate(b.date).getTime() - parseDate(a.date).getTime()).slice(0, 3);
-  const earned = badges.filter((b) => b.earnedAt);
+  const earned = state.badges.filter((b) => b.earnedAt);
 
   const pickPhoto = async () => {
     try {
@@ -71,8 +70,7 @@ export default function Profile() {
         quality: 0.7,
       });
       if (!result.canceled && result.assets[0]) {
-        actions.updateUser({ avatarUri: result.assets[0].uri });
-        toast('Profile photo updated');
+        if (await actions.updateUser({ avatarUri: result.assets[0].uri })) toast('Profile photo updated');
       }
     } catch {
       toast('Could not open photo library', 'error');
@@ -86,8 +84,8 @@ export default function Profile() {
       confirmLabel: 'Sign Out',
       destructive: true,
       icon: LogOut,
-      onConfirm: () => {
-        actions.logout();
+      onConfirm: async () => {
+        await actions.logout();
         router.replace('/login');
       },
     });
@@ -141,7 +139,7 @@ export default function Profile() {
             <View style={styles.locRow}>
               <MapPin size={15} color="rgba(255,255,255,0.85)" />
               <Text style={styles.heroLoc} numberOfLines={1}>
-                {user.area}, {user.city}
+                {place(user.area, user.city)}
               </Text>
             </View>
           </View>
@@ -242,7 +240,7 @@ export default function Profile() {
         <InfoRow icon={Mail} iconColor={Colors.info} iconBg={Colors.infoSoft} label="Email Address" value={user.email} />
         <InfoRow icon={Phone} iconColor={Colors.success} iconBg={Colors.successSoft} label="Phone Number" value={user.phone} />
         <InfoRow icon={BloodIconAdapter} iconColor={Colors.primary} iconBg={Colors.primarySoft} label="Blood Group" value={user.bloodGroup} />
-        <InfoRow icon={MapPin} iconColor={Colors.warning} iconBg={Colors.warningSoft} label="City & Area" value={`${user.area}, ${user.city}`} />
+        <InfoRow icon={MapPin} iconColor={Colors.warning} iconBg={Colors.warningSoft} label="City & Area" value={place(user.area, user.city)} />
         <InfoRow icon={User} iconColor={Colors.purple} iconBg={Colors.purpleSoft} label="Account Role" value={roleLabel(user.role)} />
         <InfoRow
           icon={CalendarDays}

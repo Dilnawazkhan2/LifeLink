@@ -13,7 +13,6 @@ import { EmptyState, IconTile, InfoRow, Pill } from '@/components/common/Misc';
 import { Screen } from '@/components/common/Screen';
 import { BloodDropIcon } from '@/components/icons';
 import { Colors } from '@/constants/colors';
-import { hospitals } from '@/data/hospitals';
 import { useApp } from '@/store/AppStore';
 import { BLOOD_GROUPS } from '@/types';
 import { formatCount, formatDistance } from '@/utils/format';
@@ -25,7 +24,7 @@ export default function HospitalDetail() {
   const insets = useSafeAreaInsets();
   const { state } = useApp();
   const { contact, toast } = useFeedback();
-  const hospital = hospitals.find((h) => h.id === id);
+  const hospital = state.hospitals.find((h) => h.id === id);
 
   if (!hospital) {
     return (

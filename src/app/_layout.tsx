@@ -4,14 +4,18 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { FeedbackProvider } from '@/components/common/Feedback';
+import { FeedbackProvider, useFeedback } from '@/components/common/Feedback';
 import { Colors } from '@/constants/colors';
-import { AppProvider, useApp } from '@/store/AppStore';
+import { AppProvider, setErrorReporter, useApp } from '@/store/AppStore';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 function RootNavigator() {
   const { state } = useApp();
+  const { toast } = useFeedback();
+
+  // Server errors from store actions surface as toasts.
+  useEffect(() => setErrorReporter((message) => toast(message, 'error')), [toast]);
 
   useEffect(() => {
     if (state.hydrated) SplashScreen.hideAsync().catch(() => undefined);
