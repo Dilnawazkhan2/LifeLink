@@ -24,6 +24,7 @@ import { ListRow, ToggleRow } from '@/components/common/Misc';
 import { Screen } from '@/components/common/Screen';
 import { Colors } from '@/constants/colors';
 import { backendLabel } from '@/services/backend';
+import { pickLocation } from '@/services/locationPick';
 import { useApp } from '@/store/AppStore';
 import type { AppSettings } from '@/types';
 
@@ -62,6 +63,34 @@ export default function Settings() {
     if (label) toast(`${label} ${value ? 'enabled' : 'disabled'}`, 'info');
   };
 
+  // Explicit, informed opt-in for nearby discovery + location-based emergency alerts.
+  const toggleNearby = (on: boolean) => {
+    if (!on) {
+      actions.setNearbyDiscovery(false).then((r) =>
+        r.ok ? toast('Location sharing turned off. Your location was removed.', 'info') : toast(r.message ?? 'Could not update location sharing', 'error'),
+      );
+      return;
+    }
+    confirm({
+      title: 'Share your approximate location?',
+      message:
+        'Patients nearby (in the app and on the website map) will see your approximate area (about 1 km) and how far away you are, never your exact position, phone number or email. LifeLink reads your location only when you use its nearby features, and uses it to alert you about compatible requests near you. You can turn this off at any time.',
+      confirmLabel: 'Share Location',
+      icon: MapPin,
+      onConfirm: async () => {
+        const r = await actions.setNearbyDiscovery(true);
+        if (!r.ok) return toast(r.message ?? 'Could not turn on location sharing', 'error');
+        if (r.needsManualPick) {
+          toast(r.message ?? 'Choose your location on the map', 'info');
+          const picked = await pickLocation({ title: 'Your Location' });
+          if (picked && (await actions.shareMyLocation(picked.point, 'manual'))) toast('Location shared', 'success');
+          return;
+        }
+        toast('Location sharing turned on', 'success');
+      },
+    });
+  };
+
   const showInfo = (key: keyof typeof INFO_PAGES) =>
     confirm({ ...INFO_PAGES[key], confirmLabel: 'Got it', hideCancel: true, icon: Info });
 
@@ -78,14 +107,14 @@ export default function Settings() {
       <Text style={styles.group}>Privacy & Location</Text>
       <Card style={styles.card}>
         <ToggleRow icon={Eye} iconColor={Colors.purple} iconBg={Colors.purpleSoft} title="Show Me in Donor Search" subtitle="Requesters can find and contact you" value={s.showInSearch} onValueChange={(v) => set('showInSearch', v, 'Donor visibility')} />
-        <ToggleRow icon={MapPin} iconColor={Colors.primary} iconBg={Colors.primarySoft} title="Share Approximate Location" subtitle="Used to calculate distance" value={s.shareLocation} onValueChange={(v) => set('shareLocation', v, 'Location sharing')} last />
+        <ToggleRow icon={MapPin} iconColor={Colors.primary} iconBg={Colors.primarySoft} title="Share Approximate Location" subtitle="Let nearby patients find you (about 1 km)" value={s.shareLocation} onValueChange={toggleNearby} last />
       </Card>
 
       <Text style={styles.group}>Search Radius</Text>
       <Card style={{ gap: 12 }}>
         <View style={styles.radiusHead}>
           <BellRing size={18} color={Colors.textMuted} />
-          <Text style={styles.radiusText}>Alert me about requests within {s.searchRadiusKm} km</Text>
+          <Text style={styles.radiusText}>Default distance for nearby donors and requests: {s.searchRadiusKm} km</Text>
         </View>
         <View style={styles.radii}>
           {RADII.map((r) => (

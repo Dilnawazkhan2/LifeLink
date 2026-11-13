@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Building2, CircleCheck, FileText, MapPin, Minus, Phone, Plus, User } from 'lucide-react-native';
+import { Building2, CircleCheck, FileText, LocateFixed, MapPin, MapPinned, Minus, Phone, Plus, User, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,6 +15,8 @@ import { CircleAlertBanner } from '@/components/forms/FormBanner';
 import { TextField } from '@/components/forms/TextField';
 import { Colors } from '@/constants/colors';
 import { BloodGroupTones } from '@/constants/bloodGroups';
+import { describePoint, getCurrentLocation } from '@/services/location';
+import { pickLocation, type PickedLocation } from '@/services/locationPick';
 import { useApp } from '@/store/AppStore';
 import { BLOOD_GROUPS, CITIES, type BloodGroup, type BloodRequest, type City, type Urgency } from '@/types';
 import { validatePhone, validateRequired } from '@/utils/validation';
@@ -35,7 +37,7 @@ export default function NewRequest() {
   const params = useLocalSearchParams<{ bloodGroup?: string; urgency?: string; hospital?: string; hospitalId?: string; city?: string; address?: string }>();
   const insets = useSafeAreaInsets();
   const { state, actions } = useApp();
-  const { confirm } = useFeedback();
+  const { confirm, toast } = useFeedback();
 
   const [patientName, setPatientName] = useState('');
   const [bloodGroup, setBloodGroup] = useState<BloodGroup | undefined>(isBloodGroup(params.bloodGroup) ? params.bloodGroup : undefined);
@@ -47,6 +49,8 @@ export default function NewRequest() {
   const [contactName, setContactName] = useState(state.user.name);
   const [contactPhone, setContactPhone] = useState(state.user.phone);
   const [description, setDescription] = useState('');
+  const [location, setLocation] = useState<PickedLocation>();
+  const [locating, setLocating] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const [submitting, setSubmitting] = useState(false);
   const [created, setCreated] = useState<BloodRequest>();
@@ -63,6 +67,26 @@ export default function NewRequest() {
       destructive: true,
       onConfirm: () => router.back(),
     });
+  };
+
+  // Request location: GPS ("Use Current Location") or a pin moved on the map ("Select on Map").
+  const useCurrentLocation = async () => {
+    setLocating(true);
+    const r = await getCurrentLocation();
+    if (!r.ok) {
+      setLocating(false);
+      return toast(r.message, 'error');
+    }
+    const label = await describePoint(r.point);
+    setLocating(false);
+    setLocation({ point: r.point, label });
+    if (!area.trim() && label) setArea(label);
+  };
+  const selectOnMap = async () => {
+    const picked = await pickLocation({ initial: location?.point, title: 'Hospital Location' });
+    if (!picked) return;
+    setLocation(picked);
+    if (!area.trim() && picked.label) setArea(picked.label);
   };
 
   const submit = async () => {
@@ -93,6 +117,9 @@ export default function NewRequest() {
         contactName: contactName.trim(),
         contactPhone: contactPhone.trim(),
         description: description.trim(),
+        latitude: location?.point.lat,
+        longitude: location?.point.lng,
+        locationLabel: location?.label ?? (location ? area.trim() || undefined : undefined),
       });
       setSubmitting(false);
       if (request) setCreated(request); // errors are shown as a toast by the store
@@ -241,6 +268,28 @@ export default function NewRequest() {
           }}
           error={errors.area}
         />
+        <View style={{ gap: 10 }}>
+          <Text style={styles.label}>Exact Location</Text>
+          <Text style={styles.hint}>Optional · lets nearby compatible donors find the hospital and get an alert</Text>
+          {location ? (
+            <View style={styles.locRow}>
+              <MapPin size={18} color={Colors.primary} />
+              <Text style={styles.locText} numberOfLines={2} accessibilityLabel="Selected location">
+                {location.label ?? `${location.point.lat.toFixed(5)}, ${location.point.lng.toFixed(5)}`}
+              </Text>
+              <Pressable onPress={selectOnMap} accessibilityRole="button" hitSlop={8}>
+                <Text style={styles.locEdit}>Edit</Text>
+              </Pressable>
+              <Pressable onPress={() => setLocation(undefined)} accessibilityRole="button" accessibilityLabel="Remove location" hitSlop={8}>
+                <X size={18} color={Colors.textMuted} />
+              </Pressable>
+            </View>
+          ) : null}
+          <View style={styles.locButtons}>
+            <Button label="Use Current Location" variant="soft" size="md" fullWidth={false} style={{ flex: 1 }} loading={locating} icon={<LocateFixed size={17} color={Colors.primary} />} onPress={useCurrentLocation} />
+            <Button label="Select on Map" variant="soft" size="md" fullWidth={false} style={{ flex: 1 }} icon={<MapPinned size={17} color={Colors.primary} />} onPress={selectOnMap} />
+          </View>
+        </View>
       </Card>
 
       <Card style={{ gap: 18 }}>
@@ -318,6 +367,10 @@ const styles = StyleSheet.create({
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: Colors.textFaint, alignItems: 'center', justifyContent: 'center' },
   radioDot: { width: 11, height: 11, borderRadius: 6 },
   urgencyLabel: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  locRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14, backgroundColor: Colors.primarySoft },
+  locText: { flex: 1, fontSize: 14, fontWeight: '600', color: Colors.text },
+  locEdit: { fontSize: 14, fontWeight: '700', color: Colors.primary },
+  locButtons: { flexDirection: 'row', gap: 10 },
   footer: { paddingHorizontal: 20, paddingTop: 12, backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.divider },
   success: { alignItems: 'center', gap: 12, paddingVertical: 40 },
   successTitle: { fontSize: 26, fontWeight: '800', color: Colors.text, marginTop: 8 },

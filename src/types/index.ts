@@ -86,6 +86,44 @@ export interface BloodRequest {
   serverStatus?: 'pending' | 'approved' | 'active' | 'fulfilled' | 'rejected' | 'cancelled';
   statusReason?: string;
   source?: 'website' | 'android' | 'admin';
+  /** Request location picked on the map / by GPS (or inherited from a known hospital). */
+  latitude?: number;
+  longitude?: number;
+  locationLabel?: string;
+}
+
+/** A point on the map. */
+export interface GeoPoint {
+  lat: number;
+  lng: number;
+}
+
+/** A donor from the nearby search: position is approximate (~1 km), never exact. */
+export interface NearbyDonor {
+  id: string;
+  name: string;
+  bloodGroup: BloodGroup;
+  city: string;
+  area: string;
+  availability: Availability;
+  verified: boolean;
+  donations: number;
+  approx: GeoPoint;
+  distanceKm: number;
+}
+
+/** A published request with a location, for maps. */
+export interface RequestLocation {
+  id: string;
+  referenceCode: string;
+  bloodGroup: BloodGroup;
+  units: number;
+  urgency: Urgency;
+  hospitalName: string;
+  city: string;
+  label?: string;
+  point: GeoPoint;
+  distanceKm?: number;
 }
 
 export type HospitalType = 'Private' | 'Public' | 'Semi-Government';

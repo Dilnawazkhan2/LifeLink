@@ -30,11 +30,22 @@ export function haversineKm(a: { lat: number; lng: number }, b: { lat: number; l
 export const cityCoords = (city?: string | null) => (city ? CITY_COORDS[city.trim().toLowerCase()] : undefined);
 
 /**
+ * The user's last known GPS position (set only after they allow location in the app).
+ * When known, distances to places with real coordinates are measured from here
+ * instead of the user's city centre.
+ */
+let userPosition: { lat: number; lng: number } | null = null;
+export const setUserPosition = (p: { lat: number; lng: number } | null) => {
+  userPosition = p;
+};
+export const getUserPosition = () => userPosition;
+
+/**
  * Estimated distance in km from the user's city to a place.
  * Same city without precise coordinates → 0 ("In your city"); unknown → 9999.
  */
 export function estimateDistanceKm(userCity: string | undefined, placeCity: string | undefined, point?: { lat?: number | null; lng?: number | null }): number {
-  const from = cityCoords(userCity);
+  const from = (point?.lat != null && point?.lng != null ? userPosition : null) ?? cityCoords(userCity);
   if (from && point?.lat != null && point?.lng != null) return Math.round(haversineKm(from, { lat: Number(point.lat), lng: Number(point.lng) }) * 10) / 10;
   if (userCity && placeCity && userCity.trim().toLowerCase() === placeCity.trim().toLowerCase()) return 0;
   const to = cityCoords(placeCity);

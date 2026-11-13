@@ -6,13 +6,15 @@ import {
   Clock,
   HeartHandshake,
   MapPin,
+  Navigation,
   Phone,
   Share2,
   Trash2,
   User,
   Users,
 } from 'lucide-react-native';
-import { Share, StyleSheet, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { Linking, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { urgencyStyle } from '@/components/cards/RequestCard';
@@ -23,9 +25,11 @@ import { useFeedback } from '@/components/common/Feedback';
 import { HeaderIconButton, StackHeader } from '@/components/common/Headers';
 import { EmptyState, InfoRow, Pill } from '@/components/common/Misc';
 import { Screen } from '@/components/common/Screen';
+import { LifeLinkMap } from '@/components/map/LifeLinkMap';
 import { Colors } from '@/constants/colors';
 import { CanDonateTo } from '@/constants/bloodGroups';
 import { useRequestActions } from '@/hooks/useRequestActions';
+import { directionsUrl } from '@/services/location';
 import { useApp } from '@/store/AppStore';
 import { formatMonthDayYear, formatTime, timeAgo } from '@/utils/date';
 import { formatDistance, place } from '@/utils/format';
@@ -45,11 +49,23 @@ export default function RequestDetail() {
   const { confirm, toast } = useFeedback();
   const { respond, contactRequester, hasResponded } = useRequestActions();
   const request = state.requests.find((r) => r.id === id);
+  const missing = !request;
+  const liveMode = state.mode === 'live';
+  const refresh = actions.refresh;
+
+  // Opened from a push notification before the list synced: load it.
+  useEffect(() => {
+    if (missing && liveMode) refresh().catch(() => undefined);
+  }, [missing, liveMode, refresh, id]);
 
   if (!request) {
     return (
       <Screen header={<StackHeader title="Request Details" />}>
-        <EmptyState icon={ClipboardX} title="Request not found" message="This request may have been removed." />
+        {state.syncing ? (
+          <EmptyState icon={ClipboardX} title="Loading request…" message="Fetching the latest requests." />
+        ) : (
+          <EmptyState icon={ClipboardX} title="Request not found" message="This request may have been removed." />
+        )}
       </Screen>
     );
   }
@@ -231,6 +247,27 @@ export default function RequestDetail() {
         <InfoRow icon={Clock} iconColor={Colors.purple} iconBg={Colors.purpleSoft} label="Posted" value={`${formatMonthDayYear(request.createdAt)} · ${formatTime(request.createdAt)}`} last />
       </Card>
 
+      {request.latitude != null && request.longitude != null ? (
+        <Card style={{ gap: 12 }}>
+          <Text style={styles.cardTitle}>Location</Text>
+          {request.locationLabel ? <Text style={styles.locLabel}>{request.locationLabel}</Text> : null}
+          <LifeLinkMap
+            style={styles.map}
+            center={{ lat: request.latitude, lng: request.longitude }}
+            zoom={15}
+            interactive={false}
+            points={[{ id: 'request', lat: request.latitude, lng: request.longitude, kind: 'request', label: request.bloodGroup, emphasis: request.urgency === 'critical' }]}
+            testID="request-map"
+          />
+          <Button
+            label="View Location"
+            variant="soft"
+            icon={<Navigation size={18} color={Colors.primary} />}
+            onPress={() => Linking.openURL(directionsUrl({ lat: request.latitude!, lng: request.longitude! })).catch(() => toast('Could not open maps', 'error'))}
+          />
+        </Card>
+      ) : null}
+
       {request.hospitalId && (
         <Button label="View Hospital" variant="soft" icon={<Building2 size={18} color={Colors.primary} />} onPress={() => router.push(`/hospitals/${request.hospitalId}`)} />
       )}
@@ -278,6 +315,8 @@ const styles = StyleSheet.create({
   incompatible: { backgroundColor: Colors.warningSoft, borderColor: Colors.warningBorder },
   compatText: { flex: 1, color: '#065F46', fontWeight: '600', fontSize: 14, lineHeight: 20 },
   cardTitle: { fontSize: 18, fontWeight: '800', color: Colors.text },
+  locLabel: { fontSize: 14, color: Colors.textSecondary },
+  map: { height: 190 },
   guideline: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   guidelineText: { fontSize: 15, color: Colors.textSecondary, flex: 1 },
   footer: {

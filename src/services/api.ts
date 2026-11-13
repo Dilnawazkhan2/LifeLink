@@ -17,6 +17,8 @@ import type {
   Donor,
   Hospital,
   HospitalType,
+  NearbyDonor,
+  RequestLocation,
   RequestStatus,
   UserProfile,
 } from '@/types';
@@ -118,7 +120,8 @@ export function mapSettings(prefs: Row | null | undefined, fallback: AppSettings
     emailUpdates: !!prefs.email_updates,
     smsAlerts: !!prefs.sms_alerts,
     showInSearch: !!prefs.show_in_search,
-    shareLocation: !!prefs.share_location,
+    // "Share Approximate Location" is the explicit nearby-discovery opt-in (default off).
+    shareLocation: !!prefs.nearby_discovery,
     searchRadiusKm: Number(prefs.search_radius_km ?? fallback.searchRadiusKm),
   };
 }
@@ -126,7 +129,11 @@ export function mapSettings(prefs: Row | null | undefined, fallback: AppSettings
 const appStatus = (s: string): RequestStatus =>
   s === 'approved' || s === 'active' ? 'active' : (s as RequestStatus);
 
+const num = (v: unknown): number | undefined => (v === null || v === undefined || v === '' ? undefined : Number(v));
+
 export function mapRequest(r: Row, userCity?: string): BloodRequest {
+  const latitude = num(r.latitude);
+  const longitude = num(r.longitude);
   return {
     id: r.id,
     patientName: r.patient_name,
@@ -143,12 +150,45 @@ export function mapRequest(r: Row, userCity?: string): BloodRequest {
     status: appStatus(r.status),
     createdAt: r.created_at,
     respondedCount: Number(r.responded_count ?? 0),
-    distanceKm: estimateDistanceKm(userCity, r.city),
+    distanceKm: estimateDistanceKm(userCity, r.city, { lat: latitude, lng: longitude }),
     isMine: !!r.is_mine,
     referenceCode: r.reference_code,
     serverStatus: r.status,
     statusReason: r.status_reason ?? undefined,
     source: r.source,
+    latitude,
+    longitude,
+    locationLabel: r.location_label ?? undefined,
+  };
+}
+
+export function mapNearbyDonor(d: Row): NearbyDonor {
+  return {
+    id: d.id,
+    name: d.full_name ?? 'Donor',
+    bloodGroup: asGroup(d.blood_group),
+    city: d.city ?? '',
+    area: d.area ?? '',
+    availability: (d.availability ?? 'available') as Availability,
+    verified: !!d.is_verified,
+    donations: Number(d.donations_count ?? 0),
+    approx: { lat: Number(d.approx_lat), lng: Number(d.approx_lng) },
+    distanceKm: Number(d.distance_km ?? 0),
+  };
+}
+
+export function mapRequestLocation(r: Row): RequestLocation {
+  return {
+    id: r.id,
+    referenceCode: r.reference_code,
+    bloodGroup: asGroup(r.blood_group),
+    units: Number(r.units ?? 1),
+    urgency: r.urgency,
+    hospitalName: r.hospital_name ?? '',
+    city: r.city ?? '',
+    label: r.location_label ?? undefined,
+    point: { lat: Number(r.latitude), lng: Number(r.longitude) },
+    distanceKm: num(r.distance_km),
   };
 }
 
@@ -360,6 +400,31 @@ export async function fetchHospitals(userCity?: string) {
   return (await rpc<Row[]>('list_hospitals')).map((h) => mapHospital(h, userCity));
 }
 
+/** Donors near a point (only donors who opted in; positions are approximate, ~1 km). */
+export async function fetchNearbyDonors(lat: number, lng: number, radiusKm: number, bloodGroup?: string) {
+  const rows = await rpc<Row[]>('nearby_donors', { _lat: lat, _lng: lng, _radius_km: radiusKm, _blood_group: bloodGroup ?? null, _limit: 200 });
+  return rows.map(mapNearbyDonor);
+}
+
+/** Published requests that have a location, optionally within a radius of a point. */
+export async function fetchRequestLocations(at?: { lat: number; lng: number }, radiusKm?: number) {
+  const rows = await rpc<Row[]>('list_request_locations', {
+    _lat: at?.lat ?? null,
+    _lng: at?.lng ?? null,
+    _radius_km: at && radiusKm ? radiusKm : null,
+    _limit: 200,
+  });
+  return rows.map(mapRequestLocation);
+}
+
+export const setNearbyDiscovery = (enabled: boolean) => rpc<void>('set_nearby_discovery', { _enabled: enabled });
+export const setMyLocation = (lat: number, lng: number, accuracyM?: number, source: 'gps' | 'manual' = 'gps') =>
+  rpc<void>('set_my_location', { _lat: lat, _lng: lng, _accuracy_m: accuracyM != null ? Math.round(accuracyM) : null, _source: source });
+export const clearMyLocation = () => rpc<void>('clear_my_location');
+export const registerPushToken = (token: string, platform: 'android' | 'ios' | 'web') =>
+  rpc<void>('register_push_token', { _token: token, _platform: platform });
+export const unregisterPushToken = (token: string) => rpc<void>('unregister_push_token', { _token: token });
+
 /** Reveals a donor's phone number (signed-in users only; logged and rate limited server-side). */
 export async function getDonorContact(donorId: string): Promise<{ name: string; phone: string }> {
   const rows = await rpc<Row[]>('get_donor_contact', { _donor_id: donorId });
@@ -386,6 +451,9 @@ export interface CreateRequestInput {
   contactName: string;
   contactPhone: string;
   description: string;
+  latitude?: number;
+  longitude?: number;
+  locationLabel?: string;
 }
 
 export async function createRequest(input: CreateRequestInput, userCity?: string): Promise<BloodRequest> {
@@ -402,6 +470,9 @@ export async function createRequest(input: CreateRequestInput, userCity?: string
       contact_name: input.contactName,
       contact_phone: input.contactPhone,
       description: input.description,
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
+      location_label: input.locationLabel ?? null,
       source: 'android',
     },
   });
@@ -440,7 +511,7 @@ export async function updateSettings(userId: string, s: Partial<AppSettings>) {
   if (s.emailUpdates !== undefined) patch.email_updates = s.emailUpdates;
   if (s.smsAlerts !== undefined) patch.sms_alerts = s.smsAlerts;
   if (s.showInSearch !== undefined) patch.show_in_search = s.showInSearch;
-  if (s.shareLocation !== undefined) patch.share_location = s.shareLocation;
+  // shareLocation is the nearby-discovery opt-in: set via set_nearby_discovery (store action), not here.
   if (s.searchRadiusKm !== undefined) patch.search_radius_km = s.searchRadiusKm;
   if (!Object.keys(patch).length) return;
   const { error } = await requireClient().from('notification_preferences').update(patch).eq('user_id', userId);

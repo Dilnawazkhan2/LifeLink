@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { MapPin, SearchX, X } from 'lucide-react-native';
+import { MapPin, SearchX } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -23,14 +23,11 @@ export default function Donors() {
   const [group, setGroup] = useState<BloodGroup | 'All'>('All');
   const [sort, setSort] = useState<SortKey>('distance');
   const [availableOnly, setAvailableOnly] = useState(false);
-  const [nearbyOnly, setNearbyOnly] = useState(false);
-  const radius = state.settings.searchRadiusKm;
 
   const q = query.trim().toLowerCase();
   const results = state.donors
     .filter((d) => (group === 'All' ? true : d.bloodGroup === group))
     .filter((d) => (availableOnly ? d.availability === 'available' : true))
-    .filter((d) => (nearbyOnly ? d.distanceKm <= radius : true))
     .filter((d) => !q || [d.name, d.city, d.area, d.bloodGroup].some((f) => f.toLowerCase().includes(q)))
     .sort((a, b) =>
       sort === 'distance' ? a.distanceKm - b.distanceKm : sort === 'donations' ? b.donations - a.donations : b.rating - a.rating,
@@ -40,7 +37,6 @@ export default function Donors() {
     setQuery('');
     setGroup('All');
     setAvailableOnly(false);
-    setNearbyOnly(false);
   };
 
   return (
@@ -48,17 +44,15 @@ export default function Donors() {
       <View style={{ marginHorizontal: -20 }}>
         <PageHeader
           title="Find Donors"
-          subtitle={`${results.length} donor${results.length === 1 ? '' : 's'} found${nearbyOnly ? ` within ${radius} km` : ''}`}
+          subtitle={`${results.length} donor${results.length === 1 ? '' : 's'} found`}
           right={
             <Pressable
-              onPress={() => setNearbyOnly((v) => !v)}
-              style={({ pressed }) => [styles.nearby, nearbyOnly && styles.nearbyActive, pressed && { opacity: 0.85 }]}
+              onPress={() => router.push('/donors/nearby')}
+              style={({ pressed }) => [styles.nearby, pressed && { opacity: 0.85 }]}
               accessibilityRole="button"
-              accessibilityState={{ selected: nearbyOnly }}
-              accessibilityLabel="Show nearby donors only">
-              <MapPin size={20} color={Colors.white} fill={nearbyOnly ? 'transparent' : 'rgba(255,255,255,0)'} />
+              accessibilityLabel="Nearby donors on a map">
+              <MapPin size={20} color={Colors.white} />
               <Text style={styles.nearbyText}>Nearby</Text>
-              {nearbyOnly && <X size={16} color={Colors.white} />}
             </Pressable>
           }
         />
@@ -88,7 +82,7 @@ export default function Donors() {
           <EmptyState
             icon={SearchX}
             title="No donors found"
-            message="Try adjusting your filters or increasing the search radius."
+            message="Try adjusting your filters, or tap Nearby to search on the map."
             action={<Button label="Clear filters" variant="soft" fullWidth={false} onPress={resetFilters} style={{ marginTop: 8 }} />}
           />
         )
@@ -110,7 +104,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     ...Shadows.primary,
   },
-  nearbyActive: { backgroundColor: Colors.primaryDark },
   nearbyText: { color: Colors.white, fontWeight: '700', fontSize: 16 },
   sortLabel: { fontSize: 15, color: Colors.textMuted, marginRight: 2 },
 });

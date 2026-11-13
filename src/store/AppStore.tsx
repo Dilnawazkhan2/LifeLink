@@ -11,6 +11,8 @@ import { createSeedRequests, PAST_ACCEPTED_REQUESTS } from '@/data/requests';
 import { defaultSettings, demoUser } from '@/data/user';
 import * as api from '@/services/api';
 import { isLive, supabase } from '@/services/backend';
+import { getCurrentLocation } from '@/services/location';
+import { disablePush, enablePush, watchTokenChanges } from '@/services/push';
 import { clearSnapshot, loadSnapshot, saveSnapshot } from '@/services/storage';
 import type {
   AppNotification,
@@ -21,6 +23,7 @@ import type {
   ChatMessage,
   Donation,
   Donor,
+  GeoPoint,
   Hospital,
   UserProfile,
 } from '@/types';
@@ -272,6 +275,14 @@ interface AppActions {
   deleteNotification: (id: string) => void;
   clearNotifications: () => void;
   updateSettings: (patch: Partial<AppSettings>) => void;
+  /**
+   * Nearby discovery opt-in ("Share Approximate Location"). Turning it on also shares the
+   * current GPS position; `needsManualPick` means GPS was unavailable and the caller should
+   * offer the map picker (then call shareMyLocation). Turning it off deletes the position.
+   */
+  setNearbyDiscovery: (enabled: boolean) => Promise<{ ok: boolean; needsManualPick?: boolean; message?: string }>;
+  /** Saves a donor position (opted-in donors only). */
+  shareMyLocation: (point: GeoPoint, source: 'gps' | 'manual', accuracyM?: number) => Promise<boolean>;
   /** Live mode: load full public profile for a donor (age, about, member since). */
   loadDonor: (id: string) => Promise<void>;
   /** Returns the donor's phone number (live mode: signed-in only, logged server-side). */
@@ -378,6 +389,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => data.subscription.unsubscribe();
   }, []);
 
+  // Live: register this device for emergency push alerts once signed in (if enabled), and
+  // re-register when the token rotates. Failures are silent here (Expo Go, emulator, no FCM yet);
+  // turning the Push Notifications toggle on in Settings reports them.
+  const pushWanted = state.isAuthenticated && state.settings.pushNotifications;
+  useEffect(() => {
+    if (!isLive || !pushWanted || !state.user.id) return;
+    enablePush().catch(() => undefined);
+    return watchTokenChanges();
+  }, [pushWanted, state.user.id]);
+
   // Live: realtime updates + refresh when the app returns to the foreground.
   const userId = state.user.id;
   useEffect(() => {
@@ -446,6 +467,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       logout: async () => {
         if (isLive) {
+          await disablePush(); // stop emergency alerts to this device for the account signing out
           await api.signOut();
           await clearSnapshot();
         }
@@ -589,7 +611,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       updateSettings: (payload) => {
         dispatch({ type: 'UPDATE_SETTINGS', payload });
-        if (isLive) live(() => api.updateSettings(stateRef.current.user.id, payload), [sync.me]);
+        if (!isLive) return;
+        live(() => api.updateSettings(stateRef.current.user.id, payload), [sync.me]);
+        if (payload.pushNotifications === true) {
+          enablePush().then((r) => {
+            if (!r.ok) reportError(r.message);
+          });
+        } else if (payload.pushNotifications === false) {
+          disablePush().catch(() => undefined);
+        }
+      },
+      setNearbyDiscovery: async (enabled) => {
+        dispatch({ type: 'UPDATE_SETTINGS', payload: { shareLocation: enabled } });
+        if (!isLive) return { ok: true };
+        try {
+          await api.setNearbyDiscovery(enabled);
+        } catch (e) {
+          dispatch({ type: 'UPDATE_SETTINGS', payload: { shareLocation: !enabled } });
+          return { ok: false, message: errorText(e) };
+        }
+        if (!enabled) return { ok: true };
+        const loc = await getCurrentLocation();
+        if (!loc.ok) return { ok: true, needsManualPick: true, message: loc.message };
+        try {
+          await api.setMyLocation(loc.point.lat, loc.point.lng, loc.accuracyM, 'gps');
+          return { ok: true };
+        } catch (e) {
+          // e.g. recipient account or missing blood group/city: undo the opt-in.
+          await api.setNearbyDiscovery(false).catch(() => undefined);
+          dispatch({ type: 'UPDATE_SETTINGS', payload: { shareLocation: false } });
+          return { ok: false, message: errorText(e) };
+        }
+      },
+      shareMyLocation: async (point, source, accuracyM) => {
+        if (!isLive) return true;
+        return live(() => api.setMyLocation(point.lat, point.lng, accuracyM, source));
       },
       loadDonor: async (id) => {
         if (!isLive) return;
